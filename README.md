@@ -1,16 +1,15 @@
-# React + Vite
+# BIK - Client Admin
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interfaz de administración interna para el personal de Banco Informático Kinal (BIK). Proporciona a los empleados, ejecutivos, y personal de servicio al cliente las herramientas necesarias para operar el banco digitalmente con control de accesos basado en roles.
 
-Currently, two official plugins are available:
+## Módulos de Operación
+- **Dashboard Central**: Métricas en tiempo real y volumen de transacciones de la plataforma.
+- **Gestión de Clientes y Cuentas**: Crear nuevos usuarios, aprobar cuentas bancarias, verificar documentos de identidad y cambiar límites operativos.
+- **Ventanilla (Cajeros)**: Módulo especializado para depósitos y retiros en efectivo físico, abono de cheques e impresión de estados de cuenta.
+- **Auditoría**: Monitoreo seguro de la huella digital (quién ejecutó qué petición en el servidor y a qué hora).
+- **Gestiones**: Interfaz de "ticket" para que el personal atienda las solicitudes en línea enviadas por los clientes desde su app.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Tecnologías
+- Vite + React + TailwindCSS
+- Consumo de API REST (`BIK-Server-Admin`)
+- Protegido por JWT (1 hora de expiración)
