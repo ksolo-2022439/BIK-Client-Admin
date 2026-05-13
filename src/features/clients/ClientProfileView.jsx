@@ -92,6 +92,17 @@ export const ClientProfileView = () => {
     }
   };
 
+  // --- Actualizar estado del usuario ---
+  const handleUpdateStatus = async (nuevoEstado) => {
+    if (!window.confirm(`¿Seguro que desea cambiar el estado del usuario a "${nuevoEstado}"?`)) return;
+    try {
+      await bikApi.patch(`/users/${id}/status`, { estado: nuevoEstado });
+      await fetchProfile();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error al actualizar el estado.');
+    }
+  };
+
   if (loading) return <div className="p-8 flex justify-center"><div className="w-8 h-8 border-4 border-bik-blue border-t-transparent rounded-full animate-spin"></div></div>;
   if (error) return <div className="p-4 bg-red-50 text-red-600 rounded-lg">{error}</div>;
   if (!profile?.user) return <div className="p-4 text-gray-500">Cliente no encontrado</div>;
@@ -189,6 +200,50 @@ export const ClientProfileView = () => {
                 Editar Información
               </button>
             )}
+          </div>
+
+          {/* Gestión de Verificación */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Verificación y Estado</h2>
+            
+            <div className="space-y-4 mb-6">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="col-span-1">
+                  <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">DPI Frontal</p>
+                  <img src={user.fotoDpiAdelanteUrl} alt="DPI Frontal" className="w-full h-24 object-cover rounded border dark:border-gray-600" />
+                </div>
+                <div className="col-span-1">
+                  <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">DPI Trasero</p>
+                  <img src={user.fotoDpiAtrasUrl} alt="DPI Trasero" className="w-full h-24 object-cover rounded border dark:border-gray-600" />
+                </div>
+                <div className="col-span-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Foto de Rostro</p>
+                  <img src={user.fotoRostroUrl} alt="Rostro" className="w-full h-32 object-cover rounded border dark:border-gray-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-gray-500 mb-2">Cambiar Estado:</p>
+              <div className="grid grid-cols-1 gap-2">
+                {['Activo', 'Suspendido', 'En Verificacion'].map(st => (
+                  <button 
+                    key={st}
+                    onClick={() => handleUpdateStatus(st)}
+                    disabled={user.estado === st}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                      user.estado === st 
+                        ? 'bg-gray-50 text-gray-400 cursor-not-allowed border border-gray-100' 
+                        : st === 'Activo' ? 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
+                        : st === 'Suspendido' ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
+                        : 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'
+                    }`}
+                  >
+                    {user.estado === st ? `Actual: ${st}` : `Marcar como ${st}`}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
