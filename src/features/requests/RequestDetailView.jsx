@@ -1,33 +1,88 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, AlertTriangle, FileText, User } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, AlertTriangle, FileText, User, Loader2 } from 'lucide-react';
+import { bikApi } from '../../shared/api/axiosInstance';
 import { usePermissions } from '../../shared/hooks/usePermissions';
 import { StatusBadge } from '../../shared/components/StatusBadge';
+import Swal from 'sweetalert2';
 
 export const RequestDetailView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { canPerformAction } = usePermissions();
-  const [loading, setLoading] = useState(false);
+  const [request, setRequest] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [escalateNote, setEscalateNote] = useState('');
 
-  // Estructura visual de prueba.
-  // En implementación real, se hace un fetch a /admin/requests/:id
-  const request = {
-    _id: id,
-    fechaSolicitud: new Date().toISOString(),
-    tipoGestion: 'Reposicion_Tarjeta',
-    estado: 'Pendiente',
-    prioridad: 'Normal',
-    descripcion: 'Robo de billetera. Solicito reposición de mi tarjeta Visa.',
-    usuarioId: {
-      nombres: 'Juan Alberto',
-      apellidos: 'Pérez Gómez',
-      dpi: '1234567890101',
-      telefono: '55443322'
-    },
-    notas: []
+  const fetchRequest = async () => {
+    try {
+      setLoading(true);
+      const res = await bikApi.get(`/admin/requests/${id}`);
+      setRequest(res.data.data);
+    } catch (error) {
+      console.error('Error fetching request:', error);
+      Swal.fire('Error', 'No se pudo cargar la información de la gestión.', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchRequest();
+  }, [id]);
+
+  const handleUpdateStatus = async (nuevoEstado) => {
+    try {
+      const confirm = await Swal.fire({
+        title: '¿Estás seguro?',
+        text: `¿Deseas ${nuevoEstado === 'Aprobada' ? 'aprobar' : 'rechazar'} esta gestión?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, continuar',
+        cancelButtonText: 'Cancelar'
+      });
+
+      if (!confirm.isConfirmed) return;
+
+      setActionLoading(true);
+      await bikApi.patch(`/requests/${id}/status`, { estado: nuevoEstado });
+      Swal.fire('Éxito', `Gestión ${nuevoEstado.toLowerCase()} correctamente.`, 'success');
+      fetchRequest();
+    } catch (error) {
+      Swal.fire('Error', error.response?.data?.message || 'Error al actualizar el estado.', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleEscalate = async () => {
+    try {
+      setActionLoading(true);
+      await bikApi.patch(`/admin/requests/${id}/escalate`, { 
+        prioridad: 'Alta', 
+        comentario: escalateNote 
+      });
+      Swal.fire('Éxito', 'Gestión escalada correctamente.', 'success');
+      setEscalateNote('');
+      fetchRequest();
+    } catch (error) {
+      Swal.fire('Error', error.response?.data?.message || 'Error al escalar la gestión.', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <Loader2 className="animate-spin text-bik-blue mb-2" size={40} />
+        <p className="text-gray-500">Cargando detalles de la gestión...</p>
+      </div>
+    );
+  }
+
+  if (!request) return null;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
@@ -44,18 +99,26 @@ export const RequestDetailView = () => {
               Gestión #{request._id.slice(-6).toUpperCase()}
               <StatusBadge status={request.estado} />
             </h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">Ingresada el {new Date(request.fechaSolicitud).toLocaleString()}</p>
+            <p className="text-gray-500 dark:text-gray-400 mt-1">Ingresada el {new Date(request.fechaSolicitud || request.createdAt).toLocaleString()}</p>
           </div>
         </div>
         
         {/* Acciones de resolución (Admin Gestiones / Soporte Presencial) */}
         {canPerformAction('approve_request') && request.estado === 'Pendiente' && (
           <div className="flex gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 font-medium rounded-lg transition-colors">
+            <button 
+              onClick={() => handleUpdateStatus('Rechazada')}
+              disabled={actionLoading}
+              className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 font-medium rounded-lg transition-colors disabled:opacity-50"
+            >
               <XCircle size={18} />
               Rechazar
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors shadow-sm">
+            <button 
+              onClick={() => handleUpdateStatus('Aprobada')}
+              disabled={actionLoading}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors shadow-sm disabled:opacity-50"
+            >
               <CheckCircle size={18} />
               Aprobar
             </button>
@@ -75,13 +138,13 @@ export const RequestDetailView = () => {
             <div className="space-y-4">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Tipo de Gestión</p>
-                <p className="text-base text-gray-900 dark:text-white mt-1">{request.tipoGestion.replace(/_/g, ' ')}</p>
+                <p className="text-base text-gray-900 dark:text-white mt-1">{request.tipoGestion?.replace(/_/g, ' ') || 'N/A'}</p>
               </div>
               
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Descripción proporcionada por el cliente</p>
                 <div className="mt-2 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 text-sm leading-relaxed">
-                  {request.descripcion}
+                  {request.descripcion || 'Sin descripción'}
                 </div>
               </div>
             </div>
@@ -90,7 +153,7 @@ export const RequestDetailView = () => {
           {/* Historial de Notas */}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Bitácora Interna</h2>
-            {request.notas.length === 0 ? (
+            {!request.notas || request.notas.length === 0 ? (
               <p className="text-sm text-gray-500 italic">No hay notas registradas en esta gestión.</p>
             ) : (
               <div className="space-y-4">
@@ -115,18 +178,20 @@ export const RequestDetailView = () => {
             <div className="space-y-3">
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Nombre</p>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{request.usuarioId.nombres} {request.usuarioId.apellidos}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {request.usuarioId?.nombres} {request.usuarioId?.apellidos}
+                </p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">DPI</p>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{request.usuarioId.dpi}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">{request.usuarioId?.dpi}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Teléfono</p>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{request.usuarioId.telefono}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">{request.usuarioId?.telefono}</p>
               </div>
               <button 
-                onClick={() => navigate(`/clientes/${request.usuarioId._id}`)}
+                onClick={() => navigate(`/clientes/${request.usuarioId?._id}`)}
                 className="w-full mt-2 py-2 text-sm text-bik-blue bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 font-medium rounded-lg transition-colors"
               >
                 Ver Perfil Completo
@@ -151,8 +216,12 @@ export const RequestDetailView = () => {
                 rows="3"
               />
               
-              <button className="w-full py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-lg transition-colors shadow-sm">
-                Escalar a Prioridad Alta
+              <button 
+                onClick={handleEscalate}
+                disabled={actionLoading || !escalateNote}
+                className="w-full py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-lg transition-colors shadow-sm disabled:opacity-50"
+              >
+                {actionLoading ? 'Escalando...' : 'Escalar a Prioridad Alta'}
               </button>
             </div>
           )}
@@ -161,3 +230,4 @@ export const RequestDetailView = () => {
     </div>
   );
 };
+
