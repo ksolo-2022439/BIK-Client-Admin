@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { bikApi } from '../../shared/api/axiosInstance';
+import { useAccountsStore } from './store/accountsStore';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import { DataTable } from '../../shared/components/DataTable';
 import { ArrowLeft, Wallet, User, CreditCard, ArrowRightLeft, Calendar, MapPin, Phone, Mail, Hash } from 'lucide-react';
@@ -9,22 +9,10 @@ import { formatCurrency, getCurrencySymbol } from '../../shared/utils/currency';
 export const AccountDetailView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { selectedAccount: data, loading, error, fetchAccountDetail } = useAccountsStore();
 
   useEffect(() => {
-    const fetchDetail = async () => {
-      try {
-        const response = await bikApi.get(`/admin/accounts/${id}/detail`);
-        setData(response.data.data);
-      } catch (err) {
-        setError('Error al cargar el detalle de la cuenta');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDetail();
+    fetchAccountDetail(id);
   }, [id]);
 
   if (loading) return <div className="p-8 flex justify-center"><div className="w-8 h-8 border-4 border-bik-blue border-t-transparent rounded-full animate-spin"></div></div>;
@@ -141,7 +129,7 @@ export const AccountDetailView = () => {
                   </div>
                 </div>
                 <button 
-                  onClick={() => navigate(`/clientes/${owner._id}`)}
+                  onClick={() => navigate(`/clientes/${owner.publicId || owner._id}`)}
                   className="w-full mt-2 py-2 text-sm text-bik-blue bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 font-medium rounded-lg transition-colors"
                 >
                   Ver Perfil Completo del Cliente

@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { bikApi } from '../../shared/api/axiosInstance';
+import { useAccountsStore } from './store/accountsStore';
 import { ArrowLeft, Save, Wallet, Search, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
 export const CreateAccountView = () => {
   const navigate = useNavigate();
+  const { searchClient, addAccount } = useAccountsStore();
   const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [dpiSearch, setDpiSearch] = useState('');
@@ -19,12 +20,10 @@ export const CreateAccountView = () => {
     setSearchError('');
     setClientFound(null);
     try {
-      const response = await bikApi.get(`/users/${dpiSearch.trim()}`);
-      if (response.data.status === 'success') {
-        setClientFound(response.data.data);
-      }
+      const client = await searchClient(dpiSearch.trim());
+      setClientFound(client);
     } catch (err) {
-      setSearchError(err.response?.data?.message || 'Cliente no encontrado con ese DPI.');
+      setSearchError(err.message || 'Cliente no encontrado con ese DPI.');
     } finally {
       setSearchLoading(false);
     }
@@ -35,14 +34,14 @@ export const CreateAccountView = () => {
     setLoading(true);
     setSuccess(null);
     try {
-      const response = await bikApi.post('/accounts', {
+      const result = await addAccount({
         usuarioId: clientFound._id,
         tipo: formData.tipo,
         moneda: formData.moneda
       });
-      setSuccess(response.data.data);
+      setSuccess(result);
     } catch (err) {
-      alert(err.response?.data?.message || 'Error al crear la cuenta.');
+      alert(err.message || 'Error al crear la cuenta.');
     } finally {
       setLoading(false);
     }

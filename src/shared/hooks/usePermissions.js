@@ -27,12 +27,20 @@ const PERMISSIONS = {
   }
 };
 
+import { useAuthStore } from '../../features/auth/store/authStore';
+
 /**
  * Hook de permisos basado en el rol del usuario autenticado.
  * Determina qué módulos y acciones están disponibles.
  */
 export const usePermissions = () => {
-  const rol = localStorage.getItem('bik_admin_rol') || '';
+  const roleFromStore = useAuthStore(state => state.role) || '';
+  
+  // Normalización: Buscamos la clave que coincida ignorando mayúsculas/minúsculas
+  const rol = Object.keys(PERMISSIONS).find(
+    key => key.toLowerCase() === roleFromStore.toLowerCase()
+  ) || roleFromStore;
+
   const perms = PERMISSIONS[rol] || { modules: [], actions: [] };
 
   /**

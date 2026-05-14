@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { bikApi } from '../../shared/api/axiosInstance';
+import { useAccountsStore } from './store/accountsStore';
 import { DataTable } from '../../shared/components/DataTable';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import { usePermissions } from '../../shared/hooks/usePermissions';
@@ -10,35 +10,20 @@ import { formatCurrency } from '../../shared/utils/currency';
 export const AccountsListView = () => {
   const navigate = useNavigate();
   const { canPerformAction } = usePermissions();
-  const [accounts, setAccounts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [pagination, setPagination] = useState({ page: 1, total: 0, pages: 0 });
+  const { accounts, loading, pagination, fetchAccounts } = useAccountsStore();
   const [filters, setFilters] = useState({ tipo: '', estado: '' });
 
-  const fetchAccounts = async (page = 1, currentFilters = filters) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ page, limit: 15 });
-      if (currentFilters.tipo) params.append('tipo', currentFilters.tipo);
-      if (currentFilters.estado) params.append('estado', currentFilters.estado);
-
-      const response = await bikApi.get(`/admin/accounts?${params.toString()}`);
-      setAccounts(response.data.data);
-      setPagination(response.data.pagination);
-    } catch (error) {
-      console.error('Error fetching accounts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchAccounts();
+    fetchAccounts({ page: 1 });
   }, []);
 
   const handleFilter = (e) => {
     e.preventDefault();
-    fetchAccounts(1, filters);
+    fetchAccounts({ 
+      page: 1, 
+      tipo: filters.tipo || undefined, 
+      estado: filters.estado || undefined 
+    });
   };
 
   const columns = [
@@ -66,7 +51,7 @@ export const AccountsListView = () => {
       label: 'Acciones',
       render: (row) => (
         <button
-          onClick={() => navigate(`/cuentas/${row._id}`)}
+          onClick={() => navigate(`/cuentas/${row.publicId || row._id}`)}
           className="p-1.5 text-bik-blue hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
           title="Ver detalle de la cuenta"
         >
@@ -137,7 +122,7 @@ export const AccountsListView = () => {
         data={accounts}
         loading={loading}
         pagination={pagination}
-        onPageChange={(page) => fetchAccounts(page)}
+        onPageChange={(page) => fetchAccounts({ page, tipo: filters.tipo || undefined, estado: filters.estado || undefined })}
       />
     </div>
   );

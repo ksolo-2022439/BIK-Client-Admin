@@ -1,39 +1,24 @@
 import { useState, useEffect } from 'react';
-import { bikApi } from '../../shared/api/axiosInstance';
+import { useTransactionsStore } from './store/transactionsStore';
 import { DataTable } from '../../shared/components/DataTable';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import { Filter, Download } from 'lucide-react';
 
 export const TransactionsView = () => {
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [pagination, setPagination] = useState({ page: 1, total: 0, pages: 0 });
+  const { transactions, loading, pagination, fetchTransactions } = useTransactionsStore();
   const [filters, setFilters] = useState({ tipo: '', estado: '' });
 
-  const fetchTransactions = async (page = 1, currentFilters = filters) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ page, limit: 20 });
-      if (currentFilters.tipo) params.append('tipo', currentFilters.tipo);
-      if (currentFilters.estado) params.append('estado', currentFilters.estado);
-
-      const response = await bikApi.get(`/admin/transactions?${params.toString()}`);
-      setTransactions(response.data.data);
-      setPagination(response.data.pagination);
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchTransactions();
+    fetchTransactions({ page: 1 });
   }, []);
 
   const handleFilter = (e) => {
     e.preventDefault();
-    fetchTransactions(1, filters);
+    fetchTransactions({ 
+      page: 1, 
+      tipo: filters.tipo || undefined, 
+      estado: filters.estado || undefined 
+    });
   };
 
   const columns = [
@@ -109,7 +94,7 @@ export const TransactionsView = () => {
         data={transactions}
         loading={loading}
         pagination={pagination}
-        onPageChange={(page) => fetchTransactions(page)}
+        onPageChange={(page) => fetchTransactions({ page, tipo: filters.tipo || undefined, estado: filters.estado || undefined })}
       />
     </div>
   );

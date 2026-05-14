@@ -1,7 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { bikApi } from '../../shared/api/axiosInstance';
+import { useAuthStore } from './store/authStore';
 import { Lock, User, AlertCircle, Loader2, Shield } from 'lucide-react';
 
 const ADMIN_ROLES = ['Administrador', 'Admin_Gestiones', 'Soporte_Remoto', 'Soporte_Presencial', 'Cajero'];
@@ -9,56 +8,28 @@ const ADMIN_ROLES = ['Administrador', 'Admin_Gestiones', 'Soporte_Remoto', 'Sopo
 export const LoginView = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ identificador: '', password: '' });
-  const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const login = useAuthStore(state => state.login);
+  const loading = useAuthStore(state => state.loading);
+  const error = useAuthStore(state => state.error);
+  const clearError = useAuthStore(state => state.clearError);
+  const isAuthenticated = useAuthStore(state => !!state.token);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (error) clearError();
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-
-    try {
-      const authUrl = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5213';
-      const response = await axios.post(`${authUrl}/api/auth/login`, formData);
-
-      if (response.data.status === 'success') {
-        const { token, rol } = response.data;
-
-        // SEGURIDAD: Verificar que el rol sea uno de los roles administrativos
-        if (!ADMIN_ROLES.includes(rol)) {
-          setError('Acceso denegado. Esta plataforma es exclusiva para personal del banco. Si eres cliente, utiliza la aplicación de cliente.');
-          setIsLoading(false);
-          return;
-        }
-
-        localStorage.setItem('bik_admin_token', token);
-        localStorage.setItem('bik_admin_rol', rol);
-
-        // Decodificar JWT para obtener uid
-        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-        const userId = tokenPayload.uid;
-
-        // Obtener datos completos del empleado
-        try {
-          const userResponse = await bikApi.get(`/users/id/${userId}`);
-          if (userResponse.data.status === 'success') {
-            localStorage.setItem('bik_admin_user', JSON.stringify(userResponse.data.data));
-          }
-        } catch (userErr) {
-          console.warn('No se pudieron cargar los datos del perfil:', userErr.message);
-        }
-
-        navigate('/dashboard');
-      }
-    } catch (err) {
-      const errorMsg = err.response?.data?.message || 'Error de conexión con el servidor de autenticación.';
-      setError(errorMsg);
-    } finally {
-      setIsLoading(false);
+    const success = await login(formData);
+    if (success) {
+      navigate('/dashboard');
     }
   };
 
@@ -126,11 +97,11 @@ export const LoginView = () => {
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={loading}
             className="w-full bg-bik-blue hover:bg-blue-800 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition-colors disabled:opacity-70 disabled:cursor-not-allowed mt-4"
           >
-            {isLoading ? <Loader2 size={20} className="animate-spin mr-2" /> : null}
-            {isLoading ? 'Autenticando...' : 'Ingresar al Panel'}
+            {loading ? <Loader2 size={20} className="animate-spin mr-2" /> : null}
+            {loading ? 'Autenticando...' : 'Ingresar al Panel'}
           </button>
         </form>
 

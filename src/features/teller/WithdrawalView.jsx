@@ -1,57 +1,30 @@
 import { useState } from 'react';
 import { ArrowUpCircle, Search, User, FileText, Loader2, CheckCircle, AlertCircle, Wallet, Hash, Phone, Mail } from 'lucide-react';
-import { bikApi } from '../../shared/api/axiosInstance';
+import { useTellerStore } from './store/tellerStore';
 import { formatCurrency, getCurrencySymbol } from '../../shared/utils/currency';
 
 export const WithdrawalView = () => {
-  const [loading, setLoading] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
+  const { accountData, searchLoading, searchError, loading, error, successData, searchAccount, processWithdrawal, clearData } = useTellerStore();
   const [searchTerm, setSearchTerm] = useState('');
-  const [accountData, setAccountData] = useState(null);
-  const [searchError, setSearchError] = useState('');
   const [formData, setFormData] = useState({ monto: '', descripcion: '' });
-  const [success, setSuccess] = useState(null);
 
   const handleSearchAccount = async () => {
     if (!searchTerm.trim()) return;
-    setSearchLoading(true);
-    setSearchError('');
-    setAccountData(null);
-
-    try {
-      const res = await bikApi.get(`/admin/accounts/by-number/${searchTerm.trim()}`);
-      if (res.data.status === 'success') {
-        const account = res.data.data;
-        if (account.estado !== 'Activa') {
-          setSearchError('La cuenta encontrada no está activa. Estado: ' + account.estado);
-          return;
-        }
-        setAccountData(account);
-      }
-    } catch (err) {
-      setSearchError(err.response?.data?.message || 'Cuenta no encontrada. Verifica el número de cuenta.');
-    } finally {
-      setSearchLoading(false);
-    }
+    await searchAccount(searchTerm.trim());
   };
 
   const handleWithdrawal = async () => {
     if (!accountData || !formData.monto || parseFloat(formData.monto) <= 0) return;
-    setLoading(true);
     try {
-      await bikApi.post('/admin/transactions/withdrawal', {
+      await processWithdrawal({
         cuentaOrigenId: accountData._id,
         monto: parseFloat(formData.monto),
         descripcion: formData.descripcion || 'Retiro en ventanilla'
       });
-      setSuccess({ monto: formData.monto, moneda: accountData.moneda || 'GTQ', cuenta: accountData.numeroCuenta, propietario: `${accountData.usuarioId?.nombres} ${accountData.usuarioId?.apellidos}` });
       setFormData({ monto: '', descripcion: '' });
-      setAccountData(null);
       setSearchTerm('');
     } catch (err) {
-      alert(err.response?.data?.message || 'Error al procesar el retiro.');
-    } finally {
-      setLoading(false);
+      alert(err.message || 'Error al procesar el retiro.');
     }
   };
 
@@ -62,22 +35,22 @@ export const WithdrawalView = () => {
         <p className="text-gray-500 dark:text-gray-400 mt-1">Retiro de efectivo en ventanilla debitado de cuenta</p>
       </div>
 
-      {success && (
+      {successData && (
         <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800/50 p-6 animate-slide-up">
           <div className="flex items-center gap-3">
             <CheckCircle size={32} className="text-emerald-600" />
             <div>
               <h2 className="text-lg font-bold text-emerald-900 dark:text-emerald-100">Retiro Procesado</h2>
-              <p className="text-emerald-700 dark:text-emerald-300">{formatCurrency(parseFloat(success.monto), success.moneda)} debitados de cuenta {success.cuenta} ({success.propietario}). Entregar efectivo al cliente.</p>
+              <p className="text-emerald-700 dark:text-emerald-300">{formatCurrency(parseFloat(formData.monto), accountData?.moneda || 'GTQ')} debitados de cuenta {accountData?.numeroCuenta}. Entregar efectivo al cliente.</p>
             </div>
           </div>
-          <button onClick={() => setSuccess(null)} className="mt-4 px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 transition-colors">
+          <button onClick={() => clearData()} className="mt-4 px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 transition-colors">
             Nuevo Retiro
           </button>
         </div>
       )}
 
-      {!success && (
+      {!successData && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-6">
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6">

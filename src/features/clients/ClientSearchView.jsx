@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { bikApi } from '../../shared/api/axiosInstance';
+import { useClientsStore } from './store/clientsStore';
 import { DataTable } from '../../shared/components/DataTable';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import { usePermissions } from '../../shared/hooks/usePermissions';
@@ -9,40 +9,21 @@ import { UserPlus, Eye, Search, Filter } from 'lucide-react';
 export const ClientSearchView = () => {
   const navigate = useNavigate();
   const { canPerformAction } = usePermissions();
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [pagination, setPagination] = useState({ page: 1, total: 0, pages: 0 });
+  const { clients, loading, pagination, fetchClients } = useClientsStore();
   const [filters, setFilters] = useState({ search: '', estado: '' });
   
-  const fetchUsers = async (page = 1, currentFilters = filters) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page,
-        limit: 10,
-        rol: 'Cliente' // Solo buscar clientes
-      });
-      
-      if (currentFilters.search) params.append('search', currentFilters.search);
-      if (currentFilters.estado) params.append('estado', currentFilters.estado);
-
-      const response = await bikApi.get(`/admin/users?${params.toString()}`);
-      setUsers(response.data.data);
-      setPagination(response.data.pagination);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchUsers();
+    fetchClients({ page: 1, rol: 'Cliente' });
   }, []);
 
   const handleSearch = (e) => {
     e.preventDefault();
-    fetchUsers(1, filters);
+    fetchClients({ 
+      page: 1, 
+      rol: 'Cliente',
+      search: filters.search || undefined,
+      estado: filters.estado || undefined
+    });
   };
 
   const columns = [
@@ -66,7 +47,7 @@ export const ClientSearchView = () => {
       label: 'Acciones',
       render: (row) => (
         <button
-          onClick={() => navigate(`/clientes/${row._id}`)}
+          onClick={() => navigate(`/clientes/${row.publicId || row._id}`)}
           className="p-1.5 text-bik-blue hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
           title="Ver perfil completo"
         >
@@ -131,10 +112,10 @@ export const ClientSearchView = () => {
 
       <DataTable 
         columns={columns}
-        data={users}
+        data={clients}
         loading={loading}
         pagination={pagination}
-        onPageChange={(page) => fetchUsers(page)}
+        onPageChange={(page) => fetchClients({ page, rol: 'Cliente', search: filters.search || undefined, estado: filters.estado || undefined })}
       />
     </div>
   );

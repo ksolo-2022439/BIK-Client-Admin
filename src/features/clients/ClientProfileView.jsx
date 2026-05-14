@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { bikApi } from '../../shared/api/axiosInstance';
+import { useClientsStore } from './store/clientsStore';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import { Modal } from '../../shared/components/Modal';
+import { ConfirmDialog } from '../../shared/components/ConfirmDialog';
 import { usePermissions } from '../../shared/hooks/usePermissions';
 import { ArrowLeft, User, Mail, Phone, MapPin, Briefcase, Calendar, CreditCard, ArrowRightLeft, Wallet, Save, Loader2, Plus, Hash } from 'lucide-react';
 import { formatCurrency } from '../../shared/utils/currency';
@@ -12,9 +13,7 @@ export const ClientProfileView = () => {
   const navigate = useNavigate();
   const { canPerformAction, canAccessModule } = usePermissions();
   
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { selectedClient: profile, loading, error, fetchClientProfile, editClient, changeClientStatus } = useClientsStore();
 
   // Estado para modal de edición
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -26,19 +25,12 @@ export const ClientProfileView = () => {
   const [newAccountData, setNewAccountData] = useState({ tipo: 'Monetaria', moneda: 'GTQ' });
   const [creatingAccount, setCreatingAccount] = useState(false);
 
-  const fetchProfile = async () => {
-    try {
-      const response = await bikApi.get(`/admin/users/${id}/full-profile`);
-      setProfile(response.data.data);
-    } catch (err) {
-      setError('Error al cargar el perfil del cliente');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Estado para modal de confirmación
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [statusToChange, setStatusToChange] = useState('');
 
   useEffect(() => {
-    fetchProfile();
+    fetchClientProfile(id);
   }, [id]);
 
   // --- Editar información del cliente ---
@@ -61,13 +53,15 @@ export const ClientProfileView = () => {
   };
 
   const handleSaveEdit = async () => {
+    if (Number(editData.ingresosMensuales) < 0) {
+      return alert('Los ingresos mensuales no pueden ser negativos.');
+    }
     setSaving(true);
     try {
-      await bikApi.put(`/users/${id}/update`, editData);
+      await editClient(id, editData);
       setIsEditOpen(false);
-      await fetchProfile();
     } catch (err) {
-      alert(err.response?.data?.message || 'Error al actualizar la información.');
+      alert(err.message || 'Error al actualizar la información.');
     } finally {
       setSaving(false);
     }
@@ -77,29 +71,37 @@ export const ClientProfileView = () => {
   const handleCreateAccount = async () => {
     setCreatingAccount(true);
     try {
-      await bikApi.post('/accounts', {
-        usuarioId: id,
+      // Necesitaremos mover esto al store de accounts luego, 
+      // pero por ahora podemos usar una llamada directa o añadirlo a clientsStore.
+      // Para mantener la limpieza, importaremos createAccount de api.js
+      const { createAccount } = await import('../../shared/api/admin.js');
+      await createAccount({
+        usuarioId: profile.user._id, // Usar el ID interno para crear, no el publicId si el backend espera ObjectId o publicId igual funciona
         tipo: newAccountData.tipo,
         moneda: newAccountData.moneda
       });
       setIsNewAccountOpen(false);
       setNewAccountData({ tipo: 'Monetaria', moneda: 'GTQ' });
-      await fetchProfile();
+      await fetchClientProfile(id);
     } catch (err) {
-      alert(err.response?.data?.message || 'Error al crear la cuenta.');
+      alert(err.response?.data?.message || err.message || 'Error al crear la cuenta.');
     } finally {
       setCreatingAccount(false);
     }
   };
 
   // --- Actualizar estado del usuario ---
-  const handleUpdateStatus = async (nuevoEstado) => {
-    if (!window.confirm(`¿Seguro que desea cambiar el estado del usuario a "${nuevoEstado}"?`)) return;
+  const handleUpdateStatus = (nuevoEstado) => {
+    setStatusToChange(nuevoEstado);
+    setIsConfirmOpen(true);
+  };
+
+  const confirmStatusChange = async () => {
     try {
-      await bikApi.patch(`/users/${id}/status`, { estado: nuevoEstado });
-      await fetchProfile();
+      await changeClientStatus(id, statusToChange);
+      setIsConfirmOpen(false);
     } catch (err) {
-      alert(err.response?.data?.message || 'Error al actualizar el estado.');
+      alert(err.message || 'Error al actualizar el estado.');
     }
   };
 
@@ -390,7 +392,7 @@ export const ClientProfileView = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ingresos Mensuales (Q)</label>
-              <input type="number" value={editData.ingresosMensuales || 0} onChange={(e) => setEditData({ ...editData, ingresosMensuales: parseFloat(e.target.value) })} className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-bik-blue" />
+              <input type="number" min="0" value={editData.ingresosMensuales || 0} onChange={(e) => setEditData({ ...editData, ingresosMensuales: parseFloat(e.target.value) })} className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-bik-blue" />
             </div>
           </div>
 
@@ -458,6 +460,16 @@ export const ClientProfileView = () => {
           </div>
         </div>
       </Modal>
+
+      {/* ======================== MODAL: Confirmar Cambio de Estado ======================== */}
+      <ConfirmDialog
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={confirmStatusChange}
+        title="Cambiar Estado de Usuario"
+        message={`¿Seguro que desea cambiar el estado del usuario a "${statusToChange}"?`}
+        variant="warning"
+      />
     </div>
   );
 };

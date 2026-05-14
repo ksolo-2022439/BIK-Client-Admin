@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { bikApi } from '../../shared/api/axiosInstance';
+import { useRequestsStore } from './store/requestsStore';
 import { DataTable } from '../../shared/components/DataTable';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import { usePermissions } from '../../shared/hooks/usePermissions';
@@ -8,36 +8,21 @@ import { Filter, Eye, AlertCircle } from 'lucide-react';
 
 export const RequestsListView = () => {
   const navigate = useNavigate();
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [pagination, setPagination] = useState({ page: 1, total: 0, pages: 0 });
+  const { requests, loading, pagination, fetchRequests } = useRequestsStore();
   const [filters, setFilters] = useState({ estado: 'Pendiente', tipoGestion: '', prioridad: '' });
 
-  const fetchRequests = async (page = 1, currentFilters = filters) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ page, limit: 15 });
-      if (currentFilters.estado) params.append('estado', currentFilters.estado);
-      if (currentFilters.tipoGestion) params.append('tipoGestion', currentFilters.tipoGestion);
-      if (currentFilters.prioridad) params.append('prioridad', currentFilters.prioridad);
-
-      const response = await bikApi.get(`/admin/requests?${params.toString()}`);
-      setRequests(response.data.data);
-      setPagination(response.data.pagination);
-    } catch (error) {
-      console.error('Error fetching requests:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchRequests();
+    fetchRequests({ page: 1, estado: 'Pendiente' });
   }, []);
 
   const handleFilter = (e) => {
     e.preventDefault();
-    fetchRequests(1, filters);
+    fetchRequests({ 
+      page: 1, 
+      estado: filters.estado || undefined, 
+      tipoGestion: filters.tipoGestion || undefined, 
+      prioridad: filters.prioridad || undefined 
+    });
   };
 
   const columns = [
@@ -79,7 +64,7 @@ export const RequestsListView = () => {
       label: 'Atender',
       render: (row) => (
         <button
-          onClick={() => navigate(`/gestiones/${row._id}`)}
+          onClick={() => navigate(`/gestiones/${row.publicId || row._id}`)}
           className="p-1.5 text-bik-blue hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors font-medium flex items-center gap-1 text-sm"
         >
           <Eye size={16} />
@@ -156,7 +141,7 @@ export const RequestsListView = () => {
         data={requests}
         loading={loading}
         pagination={pagination}
-        onPageChange={(page) => fetchRequests(page)}
+        onPageChange={(page) => fetchRequests({ page, estado: filters.estado || undefined, tipoGestion: filters.tipoGestion || undefined, prioridad: filters.prioridad || undefined })}
         emptyMessage="No hay gestiones en la bandeja para los filtros seleccionados"
       />
     </div>

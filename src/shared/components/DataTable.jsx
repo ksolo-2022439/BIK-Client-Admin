@@ -49,10 +49,10 @@ export const DataTable = ({ columns, data, searchPlaceholder = 'Buscar...', onSe
         </div>
       </div>
 
-      {/* Tabla */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50 dark:bg-gray-700/50">
+      {/* Tabla (Responsiva: Tarjetas en móvil, Tabla en Desktop) */}
+      <div className="w-full">
+        <table className="w-full block md:table">
+          <thead className="hidden md:table-header-group bg-gray-50 dark:bg-gray-700/50">
             <tr>
               {columns.map((col) => (
                 <th
@@ -70,7 +70,7 @@ export const DataTable = ({ columns, data, searchPlaceholder = 'Buscar...', onSe
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+          <tbody className="block md:table-row-group divide-y divide-gray-100 dark:divide-gray-700">
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i}>
@@ -82,16 +82,20 @@ export const DataTable = ({ columns, data, searchPlaceholder = 'Buscar...', onSe
                 </tr>
               ))
             ) : sortedData.length === 0 ? (
-              <tr>
+              <tr className="block md:table-row">
                 <td colSpan={columns.length} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
                   {emptyMessage}
                 </td>
               </tr>
             ) : (
               sortedData.map((row, i) => (
-                <tr key={row._id || i} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                <tr key={row._id || i} className="block md:table-row hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors p-4 md:p-0 border-b md:border-b-0 border-gray-100 dark:border-gray-700">
                   {columns.map((col) => (
-                    <td key={col.key} className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                    <td key={col.key} className="block md:table-cell px-2 py-2 md:px-4 md:py-3 text-sm text-gray-700 dark:text-gray-300 relative">
+                      {/* En móvil mostramos el label como encabezado de la celda */}
+                      <span className="md:hidden font-semibold text-xs text-gray-500 uppercase block mb-1">
+                        {col.label}
+                      </span>
                       {col.render ? col.render(row) : row[col.key]}
                     </td>
                   ))}

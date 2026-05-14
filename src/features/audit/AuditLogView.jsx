@@ -1,28 +1,14 @@
 import { useState, useEffect } from 'react';
-import { bikApi } from '../../shared/api/axiosInstance';
+import { useAuditStore } from './store/auditStore';
 import { DataTable } from '../../shared/components/DataTable';
 import { ShieldAlert, Activity } from 'lucide-react';
 
 export const AuditLogView = () => {
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchLogs = async () => {
-    setLoading(true);
-    try {
-      // El endpoint real es /api/audit/logs (no /api/audit)
-      const response = await bikApi.get('/audit/logs');
-      setLogs(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching audit logs:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { logs, loading, fetchLogs } = useAuditStore();
 
   useEffect(() => {
     fetchLogs();
-  }, []);
+  }, [fetchLogs]);
 
   const getMethodColor = (method) => {
     switch (method) {

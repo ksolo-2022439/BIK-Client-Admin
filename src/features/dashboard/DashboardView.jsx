@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { bikApi } from '../../shared/api/axiosInstance';
+import { useDashboardStore } from './store/dashboardStore';
 import { StatsCard } from '../../shared/components/StatsCard';
 import { usePermissions } from '../../shared/hooks/usePermissions';
 import { Users, UserPlus, UserX, Wallet, CreditCard, ClipboardList, Activity, ArrowRightLeft } from 'lucide-react';
@@ -8,22 +8,9 @@ import { Users, UserPlus, UserX, Wallet, CreditCard, ClipboardList, Activity, Ar
 export const DashboardView = () => {
   const navigate = useNavigate();
   const { canAccessModule } = usePermissions();
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { stats, loading, error, fetchStats } = useDashboardStore();
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await bikApi.get('/admin/dashboard/stats');
-        setStats(response.data.data);
-      } catch (err) {
-        setError('Error al cargar las estadísticas del dashboard');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchStats();
   }, []);
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, XCircle, AlertTriangle, FileText, User, Loader2 } from 'lucide-react';
-import { bikApi } from '../../shared/api/axiosInstance';
+import { useRequestsStore } from './store/requestsStore';
 import { usePermissions } from '../../shared/hooks/usePermissions';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import Swal from 'sweetalert2';
@@ -10,26 +10,10 @@ export const RequestDetailView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { canPerformAction } = usePermissions();
-  const [request, setRequest] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [escalateNote, setEscalateNote] = useState('');
-
-  const fetchRequest = async () => {
-    try {
-      setLoading(true);
-      const res = await bikApi.get(`/admin/requests/${id}`);
-      setRequest(res.data.data);
-    } catch (error) {
-      console.error('Error fetching request:', error);
-      Swal.fire('Error', 'No se pudo cargar la información de la gestión.', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { selectedRequest: request, loading, fetchRequestDetail, changeRequestStatus, escalate } = useRequestsStore();
 
   useEffect(() => {
-    fetchRequest();
+    fetchRequestDetail(id);
   }, [id]);
 
   const handleUpdateStatus = async (nuevoEstado) => {
@@ -46,11 +30,10 @@ export const RequestDetailView = () => {
       if (!confirm.isConfirmed) return;
 
       setActionLoading(true);
-      await bikApi.patch(`/requests/${id}/status`, { estado: nuevoEstado });
+      await changeRequestStatus(id, { estado: nuevoEstado });
       Swal.fire('Éxito', `Gestión ${nuevoEstado.toLowerCase()} correctamente.`, 'success');
-      fetchRequest();
     } catch (error) {
-      Swal.fire('Error', error.response?.data?.message || 'Error al actualizar el estado.', 'error');
+      Swal.fire('Error', error.message || 'Error al actualizar el estado.', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -59,15 +42,14 @@ export const RequestDetailView = () => {
   const handleEscalate = async () => {
     try {
       setActionLoading(true);
-      await bikApi.patch(`/admin/requests/${id}/escalate`, { 
+      await escalate(id, { 
         prioridad: 'Alta', 
         comentario: escalateNote 
       });
       Swal.fire('Éxito', 'Gestión escalada correctamente.', 'success');
       setEscalateNote('');
-      fetchRequest();
     } catch (error) {
-      Swal.fire('Error', error.response?.data?.message || 'Error al escalar la gestión.', 'error');
+      Swal.fire('Error', error.message || 'Error al escalar la gestión.', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -191,7 +173,7 @@ export const RequestDetailView = () => {
                 <p className="text-sm font-medium text-gray-900 dark:text-white">{request.usuarioId?.telefono}</p>
               </div>
               <button 
-                onClick={() => navigate(`/clientes/${request.usuarioId?._id}`)}
+                onClick={() => navigate(`/clientes/${request.usuarioId?.publicId || request.usuarioId?._id}`)}
                 className="w-full mt-2 py-2 text-sm text-bik-blue bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 font-medium rounded-lg transition-colors"
               >
                 Ver Perfil Completo

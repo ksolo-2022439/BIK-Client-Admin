@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, User, Loader2 } from 'lucide-react';
-import { bikApi } from '../../shared/api/axiosInstance';
+import { useClientsStore } from './store/clientsStore';
 import Swal from 'sweetalert2';
 
 export const CreateClientView = () => {
   const navigate = useNavigate();
+  const { addClient } = useClientsStore();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     nombres: '',
@@ -34,6 +35,10 @@ export const CreateClientView = () => {
       return Swal.fire('Error', 'El DPI debe tener 13 dígitos.', 'error');
     }
 
+    if (Number(formData.ingresosMensuales) < 0) {
+      return Swal.fire('Error', 'Los ingresos mensuales no pueden ser negativos.', 'error');
+    }
+
     try {
       setLoading(true);
       
@@ -53,13 +58,17 @@ export const CreateClientView = () => {
         fotoRostroUrl: 'https://res.cloudinary.com/demo/image/upload/v1/sample.jpg'
       };
 
-      await bikApi.post('/users/register', payload);
+      const success = await addClient(payload);
       
-      await Swal.fire('Éxito', 'Cliente registrado correctamente en el sistema.', 'success');
-      navigate('/clientes');
+      if (success) {
+        await Swal.fire('Éxito', 'Cliente registrado correctamente en el sistema.', 'success');
+        navigate('/clientes');
+      } else {
+        Swal.fire('Error', 'Error al registrar el cliente.', 'error');
+      }
     } catch (error) {
       console.error('Error creating client:', error);
-      Swal.fire('Error', error.response?.data?.message || 'Error al registrar el cliente.', 'error');
+      Swal.fire('Error', error.message || 'Error al registrar el cliente.', 'error');
     } finally {
       setLoading(false);
     }
@@ -182,9 +191,64 @@ export const CreateClientView = () => {
                 onChange={handleChange}
                 required
                 type="number" 
+                min="0"
                 className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-bik-blue transition-all dark:text-white" 
                 placeholder="0.00" 
               />
+            </div>
+          </div>
+
+          <div className="pt-4 mt-6 border-t border-gray-100 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Dirección</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Departamento</label>
+                <input 
+                  name="departamento"
+                  value={formData.departamento}
+                  onChange={handleChange}
+                  required
+                  type="text" 
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-bik-blue transition-all dark:text-white" 
+                  placeholder="Ej. Guatemala" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Municipio</label>
+                <input 
+                  name="municipio"
+                  value={formData.municipio}
+                  onChange={handleChange}
+                  required
+                  type="text" 
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-bik-blue transition-all dark:text-white" 
+                  placeholder="Ej. Mixco" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Zona</label>
+                <input 
+                  name="zona"
+                  value={formData.zona}
+                  onChange={handleChange}
+                  required
+                  type="text" 
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-bik-blue transition-all dark:text-white" 
+                  placeholder="Ej. 10" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Detalle (Calle, Avenida, Casa)</label>
+                <input 
+                  name="detalle"
+                  value={formData.detalle}
+                  onChange={handleChange}
+                  required
+                  type="text" 
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-bik-blue transition-all dark:text-white" 
+                  placeholder="1ra Calle 2-34" 
+                />
+              </div>
             </div>
           </div>
 

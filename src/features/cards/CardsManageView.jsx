@@ -1,66 +1,26 @@
 import { useState, useEffect } from 'react';
-import { bikApi } from '../../shared/api/axiosInstance';
+import { useCardsStore } from './store/cardsStore';
 import { Search, CreditCard, Filter, Eye, Lock, Unlock, Loader2, X, Wallet } from 'lucide-react';
 import { DataTable } from '../../shared/components/DataTable';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import { Modal } from '../../shared/components/Modal';
 
 export const CardsManageView = () => {
-  const [cards, setCards] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const { cards, loading, toggling, error, fetchCardsByDpi, toggleCardFreeze } = useCardsStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTipo, setFilterTipo] = useState('');
-  const [toggling, setToggling] = useState(null); // ID de tarjeta que se está cambiando
   const [selectedCard, setSelectedCard] = useState(null); // Tarjeta para ver detalles
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const searchCards = async () => {
     if (!searchTerm.trim()) return;
-    setLoading(true);
-    try {
-      // Buscar por DPI del usuario, luego traer sus tarjetas
-      const userRes = await bikApi.get(`/users/${searchTerm.trim()}`);
-      if (userRes.data.status === 'success') {
-        const userId = userRes.data.data._id;
-        const cardsRes = await bikApi.get(`/cards/user/${userId}`);
-        let fetchedCards = (cardsRes.data.data || []).map(c => ({
-          ...c,
-          clienteNombre: `${userRes.data.data.nombres} ${userRes.data.data.apellidos}`,
-          clienteDpi: userRes.data.data.dpi
-        }));
-
-        // Aplicar filtro de tipo si está activo
-        if (filterTipo) {
-          fetchedCards = fetchedCards.filter(c => {
-            if (filterTipo === 'Credito') return c.tipo === 'Credito';
-            if (filterTipo === 'Debito') return c.tipo.startsWith('Debito');
-            return true;
-          });
-        }
-
-        setCards(fetchedCards);
-      }
-    } catch (error) {
-      if (error.response?.status === 404) {
-        setCards([]);
-      } else {
-        console.error('Error buscando tarjetas:', error);
-      }
-    } finally {
-      setLoading(false);
-    }
+    await fetchCardsByDpi(searchTerm.trim(), filterTipo);
   };
 
   const handleToggleFreeze = async (cardId) => {
-    setToggling(cardId);
-    try {
-      await bikApi.patch(`/cards/${cardId}/freeze`);
-      // Refrescar la lista
-      await searchCards();
-    } catch (error) {
-      alert(error.response?.data?.message || 'Error al cambiar estado de la tarjeta.');
-    } finally {
-      setToggling(null);
+    const success = await toggleCardFreeze(cardId);
+    if (!success) {
+      alert(error || 'Error al cambiar estado de la tarjeta.');
     }
   };
 
@@ -108,8 +68,8 @@ export const CardsManageView = () => {
             <Eye size={16} />
           </button>
           <button 
-            onClick={() => handleToggleFreeze(row._id)}
-            disabled={toggling === row._id}
+            onClick={() => handleToggleFreeze(row.publicId || row._id)}
+            disabled={toggling === (row.publicId || row._id)}
             className={`p-1.5 rounded-lg transition-colors flex items-center gap-1 text-xs font-medium ${
               row.configuraciones?.bloqueada 
                 ? 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30' 
@@ -117,7 +77,7 @@ export const CardsManageView = () => {
             }`}
             title={row.configuraciones?.bloqueada ? 'Desbloquear' : 'Bloquear'}
           >
-            {toggling === row._id ? (
+            {toggling === (row.publicId || row._id) ? (
               <Loader2 size={14} className="animate-spin" />
             ) : row.configuraciones?.bloqueada ? (
               <><Unlock size={14} /><span>Desbloquear</span></>
@@ -255,7 +215,7 @@ export const CardsManageView = () => {
 
             <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
               <button 
-                onClick={() => { handleToggleFreeze(selectedCard._id); setIsDetailOpen(false); }}
+                onClick={() => { handleToggleFreeze(selectedCard.publicId || selectedCard._id); setIsDetailOpen(false); }}
                 className={`w-full py-2.5 font-medium rounded-lg transition-colors flex justify-center items-center gap-2 ${
                   selectedCard.configuraciones?.bloqueada 
                     ? 'bg-green-600 hover:bg-green-700 text-white' 

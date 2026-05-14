@@ -1,17 +1,41 @@
 import { useState } from 'react';
-import { Search, FileText, Download } from 'lucide-react';
+import { Search, FileText, Download, Loader2, AlertCircle } from 'lucide-react';
 import { DataTable } from '../../shared/components/DataTable';
+import { useTellerStore } from './store/tellerStore';
+import { useAccountsStore } from '../accounts/store/accountsStore';
 
 export const StatementView = () => {
   const [accountFound, setAccountFound] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Datos simulados
-  const transacciones = [
-    { id: 1, fecha: '2023-10-25', descripcion: 'Depósito en Efectivo', monto: 1500, tipo: 'credito' },
-    { id: 2, fecha: '2023-10-24', descripcion: 'Pago de Servicio Eléctrico', monto: -350, tipo: 'debito' },
-    { id: 3, fecha: '2023-10-22', descripcion: 'Transferencia a Terceros', monto: -500, tipo: 'debito' },
-  ];
+  const { searchAccount, searchLoading, searchError } = useTellerStore();
+  const { fetchAccountStatement, accountStatement, loading: stmtLoading } = useAccountsStore();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [month, setMonth] = useState('');
+
+  const handleSearch = async () => {
+    if (!searchTerm.trim()) return;
+    setAccountFound(false);
+    
+    const account = await searchAccount(searchTerm.trim());
+    if (account) {
+      const publicId = account.publicId || account._id;
+      // Preparar parámetros de fecha
+      const params = {};
+      if (month) {
+        const [yyyy, mm] = month.split('-');
+        params.mes = parseInt(mm, 10);
+        params.anio = parseInt(yyyy, 10);
+      }
+      
+      try {
+        await fetchAccountStatement(publicId, params);
+        setAccountFound(true);
+      } catch (err) {
+        console.error('Error fetching statement', err);
+      }
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -24,30 +48,50 @@ export const StatementView = () => {
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="flex-1 relative">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input type="text" className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-bik-blue dark:text-white" placeholder="Número de cuenta" />
+            <input 
+              type="text" 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-bik-blue dark:text-white" 
+              placeholder="Número de cuenta" 
+            />
           </div>
           <div className="w-full md:w-48 relative">
-            <input type="month" className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-bik-blue dark:text-white" />
+            <input 
+              type="month" 
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+              className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-bik-blue dark:text-white" 
+            />
           </div>
           <button 
             type="button" 
-            onClick={() => setAccountFound(true)}
-            className="px-6 py-2.5 bg-bik-blue hover:bg-blue-800 text-white font-medium rounded-lg transition-colors shadow-sm"
+            onClick={handleSearch}
+            disabled={searchLoading || stmtLoading}
+            className="px-6 py-2.5 bg-bik-blue hover:bg-blue-800 text-white font-medium rounded-lg transition-colors shadow-sm disabled:opacity-50"
           >
-            Generar
+            {searchLoading || stmtLoading ? <Loader2 size={16} className="animate-spin" /> : 'Generar'}
           </button>
         </div>
 
-        {accountFound && (
+        {searchError && (
+          <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg flex items-center gap-2 text-sm">
+            <AlertCircle size={16} />
+            {searchError}
+          </div>
+        )}
+
+        {accountFound && accountStatement && (
           <div className="space-y-6 animate-slide-up">
             <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Propietario</p>
-                <p className="font-bold text-gray-900 dark:text-white">Juan Alberto Pérez</p>
+                <p className="font-bold text-gray-900 dark:text-white">{accountStatement.cuenta.propietario}</p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-gray-500 dark:text-gray-400">Saldo Final</p>
-                <p className="font-bold text-bik-blue dark:text-blue-400">Q 4,150.00</p>
+                <p className="font-bold text-bik-blue dark:text-blue-400">Q {accountStatement.resumen.saldoFinal.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</p>
               </div>
             </div>
 
@@ -60,19 +104,22 @@ export const StatementView = () => {
 
             <DataTable 
               columns={[
-                { key: 'fecha', label: 'Fecha' },
+                { key: 'fecha', label: 'Fecha', render: (row) => new Date(row.fecha).toLocaleString() },
                 { key: 'descripcion', label: 'Descripción' },
                 { 
                   key: 'monto', 
                   label: 'Monto',
-                  render: (row) => (
-                    <span className={`font-bold ${row.tipo === 'credito' ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}>
-                      {row.tipo === 'credito' ? '+' : ''} Q {Math.abs(row.monto).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
-                    </span>
-                  )
+                  render: (row) => {
+                    const isCredit = row.tipo === 'credito';
+                    return (
+                      <span className={`font-bold ${isCredit ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>
+                        {isCredit ? '+' : '-'} Q {Math.abs(row.monto).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+                      </span>
+                    )
+                  }
                 }
               ]}
-              data={transacciones}
+              data={accountStatement.transacciones}
             />
           </div>
         )}

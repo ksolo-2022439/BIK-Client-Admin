@@ -1,83 +1,38 @@
 import { useState, useEffect } from 'react';
 import { ArrowDownCircle, Search, User, CreditCard, Loader2, CheckCircle, AlertCircle, Wallet, Hash, Phone, Mail, RefreshCw } from 'lucide-react';
-import { bikApi } from '../../shared/api/axiosInstance';
+import { useTellerStore } from './store/tellerStore';
 import { formatCurrency, getCurrencySymbol } from '../../shared/utils/currency';
 
 export const DepositView = () => {
-  const [loading, setLoading] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
+  const { exchangeRate, accountData, searchLoading, searchError, loading, error, successData, fetchExchangeRates, searchAccount, processDeposit, clearData } = useTellerStore();
   const [searchTerm, setSearchTerm] = useState('');
-  const [accountData, setAccountData] = useState(null);
-  const [searchError, setSearchError] = useState('');
   const [formData, setFormData] = useState({ monto: '', depositante: '', dpiDepositante: '', monedaDeposito: '' });
-  const [success, setSuccess] = useState(null);
-  const [exchangeRate, setExchangeRate] = useState(null);
 
-  // Obtener tipo de cambio al montar
   useEffect(() => {
-    const fetchRate = async () => {
-      try {
-        const res = await bikApi.get('/currency/rates');
-        const usdGtq = (res.data.data || []).find(r => r.monedaBase === 'USD' && r.monedaDestino === 'GTQ');
-        if (usdGtq) setExchangeRate(usdGtq);
-      } catch (err) {
-        console.error('Error fetching exchange rates:', err);
-      }
-    };
-    fetchRate();
+    fetchExchangeRates();
   }, []);
 
   const handleSearchAccount = async () => {
     if (!searchTerm.trim()) return;
-    setSearchLoading(true);
-    setSearchError('');
-    setAccountData(null);
-
-    try {
-      const res = await bikApi.get(`/admin/accounts/by-number/${searchTerm.trim()}`);
-      if (res.data.status === 'success') {
-        const account = res.data.data;
-        if (account.estado !== 'Activa') {
-          setSearchError('La cuenta encontrada no está activa. Estado: ' + account.estado);
-          return;
-        }
-        setAccountData(account);
-        // Default: depositar en la moneda de la cuenta
-        setFormData(prev => ({ ...prev, monedaDeposito: account.moneda || 'GTQ' }));
-      }
-    } catch (err) {
-      setSearchError(err.response?.data?.message || 'Cuenta no encontrada. Verifica el número de cuenta.');
-    } finally {
-      setSearchLoading(false);
+    const account = await searchAccount(searchTerm.trim());
+    if (account) {
+      setFormData(prev => ({ ...prev, monedaDeposito: account.moneda || 'GTQ' }));
     }
   };
 
   const handleDeposit = async () => {
     if (!accountData || !formData.monto || parseFloat(formData.monto) <= 0) return;
-    setLoading(true);
     try {
-      const res = await bikApi.post('/transactions/deposit', {
+      await processDeposit({
         cuentaDestinoId: accountData._id,
         monto: parseFloat(formData.monto),
         descripcion: `Depósito en efectivo por ${formData.depositante || 'cliente'}`,
         monedaDeposito: formData.monedaDeposito
       });
-      setSuccess({ 
-        montoRecibido: res.data.montoRecibido || parseFloat(formData.monto),
-        monedaRecibida: res.data.monedaRecibida || formData.monedaDeposito,
-        montoAcreditado: res.data.montoAcreditado || parseFloat(formData.monto),
-        monedaCuenta: res.data.monedaCuenta || accountData.moneda,
-        tasaCambio: res.data.tasaCambio,
-        cuenta: accountData.numeroCuenta, 
-        propietario: `${accountData.usuarioId?.nombres} ${accountData.usuarioId?.apellidos}` 
-      });
       setFormData({ monto: '', depositante: '', dpiDepositante: '', monedaDeposito: '' });
-      setAccountData(null);
       setSearchTerm('');
     } catch (err) {
-      alert(err.response?.data?.message || 'Error al procesar el depósito.');
-    } finally {
-      setLoading(false);
+      alert(err.message || 'Error al procesar el depósito.');
     }
   };
 
@@ -114,42 +69,42 @@ export const DepositView = () => {
         <p className="text-gray-500 dark:text-gray-400 mt-1">Recepción de efectivo en ventanilla para abono a cuenta</p>
       </div>
 
-      {success && (
+      {successData && (
         <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800/50 p-6 animate-slide-up">
           <div className="flex items-center gap-3 mb-4">
             <CheckCircle size={32} className="text-emerald-600" />
             <div>
               <h2 className="text-lg font-bold text-emerald-900 dark:text-emerald-100">Depósito Procesado</h2>
               <p className="text-emerald-700 dark:text-emerald-300">
-                Cuenta {success.cuenta} ({success.propietario})
+                Cuenta {successData.cuenta || (accountData && accountData.numeroCuenta)} 
               </p>
             </div>
           </div>
           <div className="space-y-2 text-sm border-t border-emerald-200 dark:border-emerald-800/50 pt-3">
             <div className="flex justify-between">
               <span className="text-emerald-700 dark:text-emerald-400">Efectivo Recibido</span>
-              <span className="font-bold text-emerald-900 dark:text-emerald-100">{formatCurrency(success.montoRecibido, success.monedaRecibida)}</span>
+              <span className="font-bold text-emerald-900 dark:text-emerald-100">{formatCurrency(successData.montoRecibido || parseFloat(formData.monto), successData.monedaRecibida || formData.monedaDeposito)}</span>
             </div>
-            {success.tasaCambio && (
+            {successData.tasaCambio && (
               <>
                 <div className="flex justify-between">
                   <span className="text-emerald-700 dark:text-emerald-400">Tipo de Cambio</span>
-                  <span className="font-medium text-emerald-900 dark:text-emerald-100">{success.tasaCambio}</span>
+                  <span className="font-medium text-emerald-900 dark:text-emerald-100">{successData.tasaCambio}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-emerald-700 dark:text-emerald-400">Monto Acreditado</span>
-                  <span className="font-bold text-emerald-900 dark:text-emerald-100">{formatCurrency(success.montoAcreditado, success.monedaCuenta)}</span>
+                  <span className="font-bold text-emerald-900 dark:text-emerald-100">{formatCurrency(successData.montoAcreditado, successData.monedaCuenta)}</span>
                 </div>
               </>
             )}
           </div>
-          <button onClick={() => setSuccess(null)} className="mt-4 px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 transition-colors">
+          <button onClick={() => clearData()} className="mt-4 px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 transition-colors">
             Nuevo Depósito
           </button>
         </div>
       )}
 
-      {!success && (
+      {!successData && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Panel Izquierdo: Búsqueda por No. Cuenta */}
           <div className="space-y-6">
