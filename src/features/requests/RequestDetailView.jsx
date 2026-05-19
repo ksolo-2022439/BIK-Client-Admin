@@ -6,31 +6,92 @@ import { usePermissions } from '../../shared/hooks/usePermissions';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import Swal from 'sweetalert2';
 
+/**
+ * Vista de detalle y gestión de solicitudes de productos financieros.
+ * Permite a los administradores calificar, aprobar, rechazar o escalar solicitudes de cuentas y tarjetas.
+ */
 export const RequestDetailView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { canPerformAction } = usePermissions();
   const { selectedRequest: request, loading, fetchRequestDetail, changeRequestStatus, escalate } = useRequestsStore();
 
+  const [actionLoading, setActionLoading] = useState(false);
+  const [escalateNote, setEscalateNote] = useState('');
+
   useEffect(() => {
     fetchRequestDetail(id);
   }, [id]);
 
+  /**
+   * Procesa la actualización del estado de la gestión (Aprobada / Rechazada).
+   * Despliega diálogos dinámicos para capturar montos de saldo o crédito inicial si aplica.
+   * 
+   * @param {string} nuevoEstado - El nuevo estado a asignar ("Aprobada" o "Rechazada").
+   */
   const handleUpdateStatus = async (nuevoEstado) => {
     try {
-      const confirm = await Swal.fire({
-        title: '¿Estás seguro?',
-        text: `¿Deseas ${nuevoEstado === 'Aprobada' ? 'aprobar' : 'rechazar'} esta gestión?`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, continuar',
-        cancelButtonText: 'Cancelar'
-      });
+      let customMonto = undefined;
+      let customComentario = undefined;
 
-      if (!confirm.isConfirmed) return;
+      if (nuevoEstado === 'Aprobada') {
+        const isCreditCard = request.tipoGestion?.includes('Tarjeta de Crédito');
+        const isAccount = request.tipoGestion?.includes('Cuenta') || request.tipoGestion?.includes('Nueva Cuenta') || request.tipoGestion?.includes('Cuenta Digital');
+
+        if (isCreditCard || isAccount) {
+          const promptTitle = isCreditCard ? 'Límite de Crédito Aprobado' : 'Monto de Apertura / Saldo Inicial';
+          const promptText = isCreditCard ? 'Ingrese el límite de crédito para la tarjeta:' : 'Ingrese el saldo inicial para la cuenta:';
+          const defaultVal = request.montoSolicitado || (isCreditCard ? 5000 : 0);
+
+          const { value: limitVal, isDismissed } = await Swal.fire({
+            title: promptTitle,
+            text: promptText,
+            input: 'number',
+            inputValue: defaultVal,
+            inputPlaceholder: 'Ingrese un valor numérico...',
+            showCancelButton: true,
+            confirmButtonText: 'Aprobar y Asignar',
+            cancelButtonText: 'Cancelar',
+            inputValidator: (value) => {
+              if (value === '' || Number(value) < 0) {
+                return 'Por favor ingrese un monto válido igual o mayor a 0';
+              }
+            }
+          });
+
+          if (isDismissed) return;
+          customMonto = Number(limitVal);
+        } else {
+          const confirm = await Swal.fire({
+            title: '¿Estás seguro?',
+            text: '¿Deseas aprobar esta gestión?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, aprobar',
+            cancelButtonText: 'Cancelar'
+          });
+          if (!confirm.isConfirmed) return;
+        }
+      } else {
+        const { value: rejectComment, isDismissed } = await Swal.fire({
+          title: 'Rechazar Gestión',
+          text: 'Ingrese un comentario o motivo de rechazo (opcional):',
+          input: 'text',
+          inputPlaceholder: 'Motivo del rechazo...',
+          showCancelButton: true,
+          confirmButtonText: 'Confirmar Rechazo',
+          cancelButtonText: 'Cancelar'
+        });
+        if (isDismissed) return;
+        customComentario = rejectComment;
+      }
 
       setActionLoading(true);
-      await changeRequestStatus(id, { estado: nuevoEstado });
+      await changeRequestStatus(id, { 
+        estado: nuevoEstado, 
+        montoSolicitado: customMonto,
+        comentario: customComentario || (nuevoEstado === 'Aprobada' ? 'Gestión aprobada con éxito' : 'Gestión rechazada')
+      });
       Swal.fire('Éxito', `Gestión ${nuevoEstado.toLowerCase()} correctamente.`, 'success');
     } catch (error) {
       Swal.fire('Error', error.message || 'Error al actualizar el estado.', 'error');
@@ -39,6 +100,9 @@ export const RequestDetailView = () => {
     }
   };
 
+  /**
+   * Escala la gestión actual a prioridad Alta adjuntando una justificación del analista de soporte.
+   */
   const handleEscalate = async () => {
     try {
       setActionLoading(true);
@@ -85,8 +149,7 @@ export const RequestDetailView = () => {
           </div>
         </div>
         
-        {/* Acciones de resolución (Admin Gestiones / Soporte Presencial) */}
-        {canPerformAction('approve_request') && request.estado === 'Pendiente' && (
+        {canPerformAction('approve_request') && (request.estado === 'Pendiente' || request.estado === 'En_Proceso') && (
           <div className="flex gap-3">
             <button 
               onClick={() => handleUpdateStatus('Rechazada')}
@@ -109,7 +172,6 @@ export const RequestDetailView = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Detalles principales */}
         <div className="md:col-span-2 space-y-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2 border-b border-gray-100 dark:border-gray-700 pb-3">
@@ -132,7 +194,6 @@ export const RequestDetailView = () => {
             </div>
           </div>
 
-          {/* Historial de Notas */}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Bitácora Interna</h2>
             {!request.notas || request.notas.length === 0 ? (
@@ -150,7 +211,6 @@ export const RequestDetailView = () => {
           </div>
         </div>
 
-        {/* Panel lateral */}
         <div className="space-y-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
@@ -181,7 +241,6 @@ export const RequestDetailView = () => {
             </div>
           </div>
 
-          {/* Panel de Escalamiento (Soporte Remoto) */}
           {canPerformAction('escalate_request') && request.estado === 'Pendiente' && (
             <div className="bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-200 dark:border-orange-800/50 p-6">
               <h2 className="text-sm font-semibold text-orange-800 dark:text-orange-400 mb-3 flex items-center gap-2">
@@ -212,4 +271,3 @@ export const RequestDetailView = () => {
     </div>
   );
 };
-

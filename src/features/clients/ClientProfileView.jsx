@@ -8,6 +8,11 @@ import { usePermissions } from '../../shared/hooks/usePermissions';
 import { ArrowLeft, User, Mail, Phone, MapPin, Briefcase, Calendar, CreditCard, ArrowRightLeft, Wallet, Save, Loader2, Plus, Hash } from 'lucide-react';
 import { formatCurrency } from '../../shared/utils/currency';
 
+/**
+ * Vista de perfil consolidado de un cliente bancario.
+ * Permite visualizar datos personales, cuentas asociadas, tarjetas de crédito/débito, historial de transacciones,
+ * edición demográfica y verificación biométrica/documental.
+ */
 export const ClientProfileView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -15,17 +20,14 @@ export const ClientProfileView = () => {
   
   const { selectedClient: profile, loading, error, fetchClientProfile, editClient, changeClientStatus } = useClientsStore();
 
-  // Estado para modal de edición
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editData, setEditData] = useState({});
   const [saving, setSaving] = useState(false);
 
-  // Estado para modal de nueva cuenta
   const [isNewAccountOpen, setIsNewAccountOpen] = useState(false);
   const [newAccountData, setNewAccountData] = useState({ tipo: 'Monetaria', moneda: 'GTQ' });
   const [creatingAccount, setCreatingAccount] = useState(false);
 
-  // Estado para modal de confirmación
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [statusToChange, setStatusToChange] = useState('');
 
@@ -33,7 +35,9 @@ export const ClientProfileView = () => {
     fetchClientProfile(id);
   }, [id]);
 
-  // --- Editar información del cliente ---
+  /**
+   * Inicializa y abre el diálogo modal para la edición de datos demográficos del cliente.
+   */
   const openEditModal = () => {
     const u = profile.user;
     setEditData({
@@ -52,6 +56,9 @@ export const ClientProfileView = () => {
     setIsEditOpen(true);
   };
 
+  /**
+   * Guarda los cambios demográficos y actualiza el estado del cliente en el servidor.
+   */
   const handleSaveEdit = async () => {
     if (Number(editData.ingresosMensuales) < 0) {
       return alert('Los ingresos mensuales no pueden ser negativos.');
@@ -67,16 +74,15 @@ export const ClientProfileView = () => {
     }
   };
 
-  // --- Crear nueva cuenta bancaria ---
+  /**
+   * Crea una nueva cuenta bancaria (Monetaria o Ahorros) asociada al cliente actual.
+   */
   const handleCreateAccount = async () => {
     setCreatingAccount(true);
     try {
-      // Necesitaremos mover esto al store de accounts luego, 
-      // pero por ahora podemos usar una llamada directa o añadirlo a clientsStore.
-      // Para mantener la limpieza, importaremos createAccount de api.js
       const { createAccount } = await import('../../shared/api/admin.js');
       await createAccount({
-        usuarioId: profile.user._id, // Usar el ID interno para crear, no el publicId si el backend espera ObjectId o publicId igual funciona
+        usuarioId: profile.user._id,
         tipo: newAccountData.tipo,
         moneda: newAccountData.moneda
       });
@@ -90,12 +96,19 @@ export const ClientProfileView = () => {
     }
   };
 
-  // --- Actualizar estado del usuario ---
+  /**
+   * Abre la confirmación para cambiar el estado administrativo del usuario.
+   * 
+   * @param {string} nuevoEstado - El estado destino (Activo, Suspendido, etc.).
+   */
   const handleUpdateStatus = (nuevoEstado) => {
     setStatusToChange(nuevoEstado);
     setIsConfirmOpen(true);
   };
 
+  /**
+   * Confirma y aplica el cambio de estado del usuario.
+   */
   const confirmStatusChange = async () => {
     try {
       await changeClientStatus(id, statusToChange);
@@ -370,7 +383,6 @@ export const ClientProfileView = () => {
         </div>
       </div>
 
-      {/* ======================== MODAL: Editar Información ======================== */}
       <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Editar Información del Cliente" size="lg">
         <div className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -426,7 +438,6 @@ export const ClientProfileView = () => {
         </div>
       </Modal>
 
-      {/* ======================== MODAL: Nueva Cuenta ======================== */}
       <Modal isOpen={isNewAccountOpen} onClose={() => setIsNewAccountOpen(false)} title="Aperturar Nueva Cuenta" size="sm">
         <div className="space-y-5">
           <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800/50">
@@ -461,7 +472,6 @@ export const ClientProfileView = () => {
         </div>
       </Modal>
 
-      {/* ======================== MODAL: Confirmar Cambio de Estado ======================== */}
       <ConfirmDialog
         isOpen={isConfirmOpen}
         onClose={() => setIsConfirmOpen(false)}

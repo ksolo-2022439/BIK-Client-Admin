@@ -1,8 +1,4 @@
-/**
- * Matriz de permisos por rol para el panel administrativo de BIK.
- * Define qué módulos y acciones están disponibles para cada rol.
- * 'Administrador' es super-admin y tiene acceso a TODO.
- */
+import { useAuthStore } from '../../features/auth/store/authStore';
 
 const PERMISSIONS = {
   Administrador: {
@@ -27,16 +23,15 @@ const PERMISSIONS = {
   }
 };
 
-import { useAuthStore } from '../../features/auth/store/authStore';
-
 /**
  * Hook de permisos basado en el rol del usuario autenticado.
- * Determina qué módulos y acciones están disponibles.
+ * Determina qué módulos y acciones del panel administrativo están disponibles para la sesión.
+ * 
+ * @returns {Object} Funciones y estados de validación de permisos.
  */
 export const usePermissions = () => {
   const roleFromStore = useAuthStore(state => state.role) || '';
   
-  // Normalización: Buscamos la clave que coincida ignorando mayúsculas/minúsculas
   const rol = Object.keys(PERMISSIONS).find(
     key => key.toLowerCase() === roleFromStore.toLowerCase()
   ) || roleFromStore;
@@ -46,17 +41,20 @@ export const usePermissions = () => {
   /**
    * Verifica si el usuario puede acceder a un módulo específico.
    * @param {string} module - Nombre del módulo (e.g. 'dashboard', 'teller', 'audit')
+   * @returns {boolean} Acceso concedido o denegado.
    */
   const canAccessModule = (module) => perms.modules.includes(module);
 
   /**
    * Verifica si el usuario puede realizar una acción específica.
    * @param {string} action - Nombre de la acción (e.g. 'deposit', 'approve_request')
+   * @returns {boolean} Permiso concedido o denegado.
    */
   const canPerformAction = (action) => perms.actions.includes(action);
 
   /**
-   * Formatea el nombre del rol para visualización.
+   * Formatea el nombre técnico del rol para su visualización amigable en la interfaz.
+   * @returns {string} Nombre amigable del rol.
    */
   const getRolDisplayName = () => {
     const names = {

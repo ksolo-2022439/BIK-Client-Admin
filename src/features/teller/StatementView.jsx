@@ -4,6 +4,9 @@ import { DataTable } from '../../shared/components/DataTable';
 import { useTellerStore } from './store/tellerStore';
 import { useAccountsStore } from '../accounts/store/accountsStore';
 
+/**
+ * Vista de Ventanilla para la consulta, generación y emisión de estados de cuenta estructurados de un cliente.
+ */
 export const StatementView = () => {
   const [accountFound, setAccountFound] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -13,6 +16,9 @@ export const StatementView = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [month, setMonth] = useState('');
 
+  /**
+   * Realiza la consulta de la cuenta bancaria en base de datos y recupera el historial detallado de movimientos.
+   */
   const handleSearch = async () => {
     if (!searchTerm.trim()) return;
     setAccountFound(false);
@@ -20,7 +26,6 @@ export const StatementView = () => {
     const account = await searchAccount(searchTerm.trim());
     if (account) {
       const publicId = account.publicId || account._id;
-      // Preparar parámetros de fecha
       const params = {};
       if (month) {
         const [yyyy, mm] = month.split('-');

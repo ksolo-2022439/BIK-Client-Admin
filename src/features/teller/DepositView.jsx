@@ -3,6 +3,10 @@ import { ArrowDownCircle, Search, User, CreditCard, Loader2, CheckCircle, AlertC
 import { useTellerStore } from './store/tellerStore';
 import { formatCurrency, getCurrencySymbol } from '../../shared/utils/currency';
 
+/**
+ * Vista de Ventanilla para el procesamiento de depósitos en efectivo (abono directo a cuentas bancarias).
+ * Soporta de forma dinámica depósitos con conversión cambiaria GTQ/USD.
+ */
 export const DepositView = () => {
   const { exchangeRate, accountData, searchLoading, searchError, loading, error, successData, fetchExchangeRates, searchAccount, processDeposit, clearData } = useTellerStore();
   const [searchTerm, setSearchTerm] = useState('');
@@ -12,6 +16,9 @@ export const DepositView = () => {
     fetchExchangeRates();
   }, []);
 
+  /**
+   * Realiza la búsqueda e inicializa la cuenta destino en el panel operativo de la ventanilla.
+   */
   const handleSearchAccount = async () => {
     if (!searchTerm.trim()) return;
     const account = await searchAccount(searchTerm.trim());
@@ -20,6 +27,9 @@ export const DepositView = () => {
     }
   };
 
+  /**
+   * Envía la solicitud de depósito en efectivo y limpia los campos en caso de éxito.
+   */
   const handleDeposit = async () => {
     if (!accountData || !formData.monto || parseFloat(formData.monto) <= 0) return;
     try {
@@ -36,7 +46,11 @@ export const DepositView = () => {
     }
   };
 
-  // Calcular preview de conversión
+  /**
+   * Calcula la vista previa de conversión cambiaria en tiempo real si difieren las monedas de origen y destino.
+   * 
+   * @returns {Object|null} Objeto con montos formateados y tasa o null si no se requiere conversión.
+   */
   const getConversionPreview = () => {
     if (!accountData || !formData.monto || !exchangeRate) return null;
     const monto = parseFloat(formData.monto);
@@ -45,7 +59,7 @@ export const DepositView = () => {
     const monedaCuenta = accountData.moneda || 'GTQ';
     const monedaDep = formData.monedaDeposito;
 
-    if (monedaDep === monedaCuenta) return null; // Sin conversión
+    if (monedaDep === monedaCuenta) return null;
 
     if (monedaDep === 'GTQ' && monedaCuenta === 'USD') {
       const convertido = monto / exchangeRate.tasaCompra;

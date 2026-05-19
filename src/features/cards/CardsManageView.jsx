@@ -5,18 +5,29 @@ import { DataTable } from '../../shared/components/DataTable';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import { Modal } from '../../shared/components/Modal';
 
+/**
+ * Vista de administración de Tarjetas para la búsqueda, bloqueo/congelamiento y auditoría de límites.
+ */
 export const CardsManageView = () => {
   const { cards, loading, toggling, error, fetchCardsByDpi, toggleCardFreeze } = useCardsStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTipo, setFilterTipo] = useState('');
-  const [selectedCard, setSelectedCard] = useState(null); // Tarjeta para ver detalles
+  const [selectedCard, setSelectedCard] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
+  /**
+   * Realiza la consulta asíncrona de tarjetas filtrando por el DPI ingresado.
+   */
   const searchCards = async () => {
     if (!searchTerm.trim()) return;
     await fetchCardsByDpi(searchTerm.trim(), filterTipo);
   };
 
+  /**
+   * Alterna el congelamiento/bloqueo de seguridad de la tarjeta.
+   * 
+   * @param {string} cardId - ID único de la tarjeta.
+   */
   const handleToggleFreeze = async (cardId) => {
     const success = await toggleCardFreeze(cardId);
     if (!success) {
@@ -24,11 +35,21 @@ export const CardsManageView = () => {
     }
   };
 
+  /**
+   * Abre la vista detallada de la tarjeta seleccionada en el diálogo modal.
+   * 
+   * @param {Object} card - Objeto de datos de la tarjeta.
+   */
   const openDetail = (card) => {
     setSelectedCard(card);
     setIsDetailOpen(true);
   };
 
+  /**
+   * Maneja el evento submit del formulario de búsqueda de tarjetas.
+   * 
+   * @param {Object} e - Evento de formulario de React.
+   */
   const handleSearch = (e) => {
     e.preventDefault();
     searchCards();
@@ -140,11 +161,9 @@ export const CardsManageView = () => {
         />
       )}
 
-      {/* ======================== MODAL: Detalle de Tarjeta ======================== */}
       <Modal isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} title="Detalle de Tarjeta" size="md">
         {selectedCard && (
           <div className="space-y-5">
-            {/* Preview de tarjeta visual */}
             <div className={`relative w-full h-48 rounded-2xl bg-gradient-to-br ${selectedCard.tipo === 'Credito' ? 'from-orange-500 to-red-600' : 'from-blue-600 to-blue-900'} p-6 shadow-lg text-white overflow-hidden`}>
               <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4"></div>
               <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4"></div>
@@ -173,11 +192,10 @@ export const CardsManageView = () => {
               </div>
             </div>
 
-            {/* Detalles técnicos */}
             <div className="space-y-3">
               <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700">
-                <span className="text-sm text-gray-500 dark:text-gray-400">ID MongoDB</span>
-                <span className="text-sm font-mono text-gray-900 dark:text-white">{selectedCard._id}</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">ID de Tarjeta</span>
+                <span className="text-sm font-mono text-gray-900 dark:text-white">{selectedCard.publicId || selectedCard._id}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700">
                 <span className="text-sm text-gray-500 dark:text-gray-400">CVV</span>
@@ -189,7 +207,9 @@ export const CardsManageView = () => {
               </div>
               <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700">
                 <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1"><Wallet size={14} /> Cuenta Vinculada</span>
-                <span className="text-sm font-mono text-gray-900 dark:text-white">{selectedCard.cuentaVinculadaId || 'N/A (Crédito)'}</span>
+                <span className="text-sm font-mono text-gray-900 dark:text-white">
+                  {selectedCard.cuentaVinculadaId?.numeroCuenta || selectedCard.cuentaVinculadaId || 'N/A (Crédito)'}
+                </span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700">
                 <span className="text-sm text-gray-500 dark:text-gray-400">Compras Internacionales</span>

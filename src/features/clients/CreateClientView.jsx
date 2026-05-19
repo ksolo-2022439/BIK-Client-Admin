@@ -4,6 +4,9 @@ import { ArrowLeft, Save, User, Loader2 } from 'lucide-react';
 import { useClientsStore } from './store/clientsStore';
 import Swal from 'sweetalert2';
 
+/**
+ * Vista del panel administrativo para dar de alta nuevos clientes de forma directa.
+ */
 export const CreateClientView = () => {
   const navigate = useNavigate();
   const { addClient } = useClientsStore();
@@ -23,11 +26,21 @@ export const CreateClientView = () => {
     detalle: 'Ciudad de Guatemala'
   });
 
+  /**
+   * Actualiza el estado local de los campos del formulario.
+   * 
+   * @param {Object} e - Evento de cambio del input.
+   */
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  /**
+   * Realiza las validaciones y envía la solicitud de creación de cliente con placeholders biométricos predeterminados.
+   * 
+   * @param {Object} e - Evento de envío del formulario.
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -42,8 +55,6 @@ export const CreateClientView = () => {
     try {
       setLoading(true);
       
-      // Enviar datos al endpoint de registro
-      // Agregamos valores por defecto para campos requeridos por el backend que no están en este formulario simplificado
       const payload = {
         ...formData,
         direccion: {
@@ -52,7 +63,6 @@ export const CreateClientView = () => {
           zona: formData.zona,
           detalle: formData.detalle
         },
-        // Fotos por defecto para cumplir con el esquema obligatorio del backend
         fotoDpiAdelanteUrl: 'https://res.cloudinary.com/demo/image/upload/v1/sample.jpg',
         fotoDpiAtrasUrl: 'https://res.cloudinary.com/demo/image/upload/v1/sample.jpg',
         fotoRostroUrl: 'https://res.cloudinary.com/demo/image/upload/v1/sample.jpg'
@@ -274,4 +284,3 @@ export const CreateClientView = () => {
     </div>
   );
 };
-

@@ -1,9 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { loginAdmin } from '../../../shared/api';
-import { bikApi } from '../../../shared/api/axiosInstance'; // Import for profile fetching
+import { bikApi } from '../../../shared/api/axiosInstance';
 import { jwtDecode } from 'jwt-decode';
 
+/**
+ * Almacén de estado global (Zustand) persistido para la autenticación y sesión de personal administrativo.
+ */
 export const useAuthStore = create(
   persist(
     (set, get) => ({
@@ -13,6 +16,12 @@ export const useAuthStore = create(
       loading: false,
       error: null,
 
+      /**
+       * Realiza el inicio de sesión del usuario administrativo, valida sus roles permitidos y recupera su perfil bancario.
+       * 
+       * @param {Object} credentials - Credenciales de acceso (email y password).
+       * @returns {Promise<boolean>} True si el login fue exitoso y el rol está autorizado.
+       */
       login: async (credentials) => {
         try {
           set({ loading: true, error: null });
@@ -27,7 +36,6 @@ export const useAuthStore = create(
               return false;
             }
 
-            // Decode token safely (assuming jwt-decode is available or we decode base64 manually)
             let userId = null;
             try {
                const payload = JSON.parse(atob(token.split('.')[1]));
@@ -38,15 +46,10 @@ export const useAuthStore = create(
 
             let userData = { id: userId };
             
-            // Temporary set token so bikApi can use it for the next call if interceptor reads from state
-            // But interceptor reads from localStorage right now. 
-            // We should ideally update interceptor later. For now we set it to localStorage too so it works.
             localStorage.setItem('bik_admin_token', token);
 
             try {
               if (userId) {
-                // Pasamos el token explícitamente para asegurar que esta primera llamada funcione
-                // independientemente de la velocidad de sincronización del localStorage/Zustand
                 const userResponse = await bikApi.get(`/users/id/${userId}`, {
                   headers: { Authorization: `Bearer ${token}` }
                 });
@@ -77,15 +80,21 @@ export const useAuthStore = create(
         }
       },
 
+      /**
+       * Cierra la sesión activa removiendo los tokens de seguridad y limpiando el estado global.
+       */
       logout: () => {
         localStorage.removeItem('bik_admin_token');
         set({ user: null, token: null, role: null, error: null });
       },
 
+      /**
+       * Limpia el mensaje de error activo en el estado de autenticación.
+       */
       clearError: () => set({ error: null })
     }),
     {
-      name: 'bik-admin-auth', // name of the item in the storage (must be unique)
+      name: 'bik-admin-auth',
       partialize: (state) => ({ token: state.token, role: state.role, user: state.user }),
     }
   )
