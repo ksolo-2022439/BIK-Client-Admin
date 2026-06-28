@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { ArrowDownCircle, Search, User, CreditCard, Loader2, CheckCircle, AlertCircle, Wallet, Hash, Phone, Mail, RefreshCw } from 'lucide-react';
 import { useTellerStore } from './store/tellerStore';
 import { formatCurrency, getCurrencySymbol } from '../../shared/utils/currency';
+import Swal from 'sweetalert2';
+import { getReadableError } from '../../shared/utils/errorMessages';
 
 /**
  * Vista de Ventanilla para el procesamiento de depósitos en efectivo (abono directo a cuentas bancarias).
@@ -42,7 +44,7 @@ export const DepositView = () => {
       setFormData({ monto: '', depositante: '', dpiDepositante: '', monedaDeposito: '' });
       setSearchTerm('');
     } catch (err) {
-      alert(err.message || 'Error al procesar el depósito.');
+      Swal.fire('Error', getReadableError(err.response?.data?.message || err.message), 'error');
     }
   };
 
@@ -151,7 +153,7 @@ export const DepositView = () => {
               {searchError && (
                 <div className="mt-3 flex items-center gap-2 text-red-600 dark:text-red-400 text-sm">
                   <AlertCircle size={16} />
-                  {searchError}
+                   {getReadableError(searchError)}
                 </div>
               )}
             </div>

@@ -1,24 +1,21 @@
 import { Navigate, Outlet } from 'react-router-dom';
-import Swal from 'sweetalert2';
+import { useAuth } from '../../shared/hooks/useAuth';
 
+/**
+ * Guard de seguridad para el panel administrativo.
+ * Restringe el acceso a usuarios que no tengan un rol administrativo.
+ */
 export const AdminProtectedRoute = () => {
-    const token = localStorage.getItem('bik_token');
-    const rol = localStorage.getItem('bik_rol');
+    const { token, rol, isAuthenticated } = useAuth();
+    const ADMIN_ROLES = ['Administrador', 'Admin_Gestiones', 'Soporte_Remoto', 'Soporte_Presencial', 'Cajero'];
 
-    if (!token) {
+    if (!isAuthenticated || !token) {
         return <Navigate to="/login" replace />;
     }
 
-    if (rol !== 'ADMIN_ROLE') {
-        Swal.fire({
-            icon: 'error',
-            title: 'Acceso Denegado',
-            text: 'No tienes los permisos necesarios para acceder a la consola de administración.',
-            confirmButtonColor: '#104F8C'
-        });
-        localStorage.removeItem('bik_token');
-        localStorage.removeItem('bik_rol');
-        return <Navigate to="/login" replace />;
+    if (!ADMIN_ROLES.includes(rol)) {
+        console.warn("Acceso denegado a panel administrativo. Redirigiendo a banca de clientes.");
+        return <Navigate to="/mi-banca/cuentas" replace />;
     }
 
     return <Outlet />;

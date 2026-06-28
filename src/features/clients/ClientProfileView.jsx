@@ -246,12 +246,12 @@ export const ClientProfileView = () => {
                     key={st}
                     onClick={() => handleUpdateStatus(st)}
                     disabled={user.estado === st}
-                    className={`py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                    className={`py-2 px-3 rounded-lg text-xs font-bold transition-all border ${
                       user.estado === st 
-                        ? 'bg-gray-50 text-gray-400 cursor-not-allowed border border-gray-100' 
-                        : st === 'Activo' ? 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
-                        : st === 'Suspendido' ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
-                        : 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'
+                        ? 'bg-gray-50 text-gray-400 cursor-not-allowed border-gray-100 dark:bg-gray-700/40 dark:text-gray-500 dark:border-gray-700' 
+                        : st === 'Activo' ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900/50 dark:hover:bg-green-900/45'
+                        : st === 'Suspendido' ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/50 dark:hover:bg-red-900/45'
+                        : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/50 dark:hover:bg-blue-900/45'
                     }`}
                   >
                     {user.estado === st ? `Actual: ${st}` : `Marcar como ${st}`}

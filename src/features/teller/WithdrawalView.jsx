@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { ArrowUpCircle, Search, User, FileText, Loader2, CheckCircle, AlertCircle, Wallet, Hash, Phone, Mail } from 'lucide-react';
 import { useTellerStore } from './store/tellerStore';
 import { formatCurrency, getCurrencySymbol } from '../../shared/utils/currency';
+import Swal from 'sweetalert2';
+import { getReadableError } from '../../shared/utils/errorMessages';
 
 export const WithdrawalView = () => {
   const { accountData, searchLoading, searchError, loading, error, successData, searchAccount, processWithdrawal, clearData } = useTellerStore();
@@ -24,7 +26,7 @@ export const WithdrawalView = () => {
       setFormData({ monto: '', descripcion: '' });
       setSearchTerm('');
     } catch (err) {
-      alert(err.message || 'Error al procesar el retiro.');
+      Swal.fire('Error', getReadableError(err.response?.data?.message || err.message), 'error');
     }
   };
 
@@ -82,7 +84,7 @@ export const WithdrawalView = () => {
               {searchError && (
                 <div className="mt-3 flex items-center gap-2 text-red-600 dark:text-red-400 text-sm">
                   <AlertCircle size={16} />
-                  {searchError}
+                   {getReadableError(searchError)}
                 </div>
               )}
             </div>

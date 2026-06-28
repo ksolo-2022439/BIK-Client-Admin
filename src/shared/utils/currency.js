@@ -27,3 +27,5 @@ export const formatCurrency = (amount, moneda = 'GTQ') => {
   const formatted = (amount || 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return `${symbol} ${formatted}`;
 };
+
+export const formatGTQ = formatCurrency;

@@ -2,10 +2,9 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { loginAdmin } from '../../../shared/api';
 import { bikApi } from '../../../shared/api/axiosInstance';
-import { jwtDecode } from 'jwt-decode';
 
 /**
- * Almacén de estado global (Zustand) persistido para la autenticación y sesión de personal administrativo.
+ * Almacén de estado global (Zustand) persistido para la autenticación y sesión de usuarios y personal.
  */
 export const useAuthStore = create(
   persist(
@@ -13,29 +12,31 @@ export const useAuthStore = create(
       user: null,
       token: null,
       role: null,
+      isAuthenticated: false,
       loading: false,
       error: null,
 
       /**
-       * Realiza el inicio de sesión del usuario administrativo, valida sus roles permitidos y recupera su perfil bancario.
+       * Realiza el inicio de sesión del usuario (cliente o administrativo) y recupera su perfil.
        * 
-       * @param {Object} credentials - Credenciales de acceso (email y password).
-       * @returns {Promise<boolean>} True si el login fue exitoso y el rol está autorizado.
+       * @param {Object} credentials - Credenciales de acceso (identificador/email y password).
+       * @returns {Promise<string|boolean>} El rol del usuario si el login fue exitoso, false en caso contrario.
        */
       login: async (credentials) => {
         try {
           set({ loading: true, error: null });
-          const response = await loginAdmin(credentials);
+          
+          // Soporta tanto { identificador, password } del cliente como { email, password } del admin
+          const payloadRequest = {
+            identificador: credentials.identificador || credentials.email,
+            password: credentials.password
+          };
+
+          const response = await loginAdmin(payloadRequest);
           
           if (response.data.status === 'success') {
             const { token, rol } = response.data;
-            const ADMIN_ROLES = ['Administrador', 'Admin_Gestiones', 'Soporte_Remoto', 'Soporte_Presencial', 'Cajero'];
             
-            if (!ADMIN_ROLES.includes(rol)) {
-              set({ error: 'Acceso denegado. Rol no administrativo.', loading: false });
-              return false;
-            }
-
             let userId = null;
             try {
                const payload = JSON.parse(atob(token.split('.')[1]));
@@ -44,9 +45,9 @@ export const useAuthStore = create(
                console.error("Error decoding token");
             }
 
-            let userData = { id: userId };
+            let userData = { id: userId, publicId: userId };
             
-            localStorage.setItem('bik_admin_token', token);
+            localStorage.setItem('bik_token', token);
 
             try {
               if (userId) {
@@ -66,9 +67,11 @@ export const useAuthStore = create(
               token,
               role: rol,
               user: userData,
-              loading: false
+              isAuthenticated: true,
+              loading: false,
+              error: null
             });
-            return true;
+            return rol;
           }
           return false;
         } catch (error) {
@@ -81,11 +84,33 @@ export const useAuthStore = create(
       },
 
       /**
+       * Registra un nuevo usuario en la plataforma de BIK por medio de la API principal.
+       * 
+       * @param {Object} userData - Datos de registro (DPI, Nombre, Correo, Teléfono, Password).
+       * @returns {Promise<Object>} Respuesta del servidor.
+       */
+      register: async (userData) => {
+        set({ loading: true, error: null });
+        try {
+          const response = await bikApi.post('/users/register', userData);
+          set({ loading: false });
+          return response.data;
+        } catch (error) {
+          set({ 
+            loading: false, 
+            error: error.response?.data?.message || 'Error en el registro' 
+          });
+          throw error;
+        }
+      },
+
+      /**
        * Cierra la sesión activa removiendo los tokens de seguridad y limpiando el estado global.
        */
       logout: () => {
+        localStorage.removeItem('bik_token');
         localStorage.removeItem('bik_admin_token');
-        set({ user: null, token: null, role: null, error: null });
+        set({ user: null, token: null, role: null, isAuthenticated: false, error: null });
       },
 
       /**
@@ -94,8 +119,8 @@ export const useAuthStore = create(
       clearError: () => set({ error: null })
     }),
     {
-      name: 'bik-admin-auth',
-      partialize: (state) => ({ token: state.token, role: state.role, user: state.user }),
+      name: 'bik-auth-storage',
+      partialize: (state) => ({ token: state.token, role: state.role, user: state.user, isAuthenticated: state.isAuthenticated }),
     }
   )
 );

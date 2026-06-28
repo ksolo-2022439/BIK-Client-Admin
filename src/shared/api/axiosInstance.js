@@ -23,7 +23,7 @@ bikApi.interceptors.request.use(
     (config) => {
         let token = null;
         
-        const authStorage = localStorage.getItem('bik-admin-auth');
+        const authStorage = localStorage.getItem('bik-auth-storage');
         if (authStorage) {
             try {
                 const parsed = JSON.parse(authStorage);
@@ -34,7 +34,7 @@ bikApi.interceptors.request.use(
         }
 
         if (!token) {
-            token = localStorage.getItem('bik_admin_token');
+            token = localStorage.getItem('bik_token');
         }
 
         if (token) {
@@ -57,8 +57,8 @@ bikApi.interceptors.response.use(
     (error) => {
         if (error.response) {
             if (error.response.status === 401) {
-                localStorage.removeItem('bik-admin-auth');
-                localStorage.removeItem('bik_admin_token');
+                localStorage.removeItem('bik-auth-storage');
+                localStorage.removeItem('bik_token');
                 window.location.href = '/login';
             }
         }

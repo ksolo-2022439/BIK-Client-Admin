@@ -20,6 +20,10 @@ const PERMISSIONS = {
   Cajero: {
     modules: ['dashboard', 'clients', 'accounts', 'teller', 'cards', 'transactions'],
     actions: ['deposit', 'withdrawal', 'cancel_account', 'generate_statement', 'manage_cards', 'view_transactions']
+  },
+  Cliente: {
+    modules: ['cuentas', 'transferencias', 'pagos', 'pago-qr', 'remesas', 'divisas', 'gestiones', 'seguros', 'finanzas', 'tarjetas', 'configuracion', 'notificaciones', 'tutoriales'],
+    actions: ['view_accounts', 'make_transfer', 'pay_services', 'use_qr', 'request_products', 'sign_documents', 'view_finances', 'manage_settings']
   }
 };
 
@@ -62,7 +66,8 @@ export const usePermissions = () => {
       Admin_Gestiones: 'Administrador de Gestiones',
       Soporte_Remoto: 'Soporte al Cliente (Remoto)',
       Soporte_Presencial: 'Soporte al Cliente (Presencial)',
-      Cajero: 'Cajero / Ventanilla'
+      Cajero: 'Cajero / Ventanilla',
+      Cliente: 'Cliente Distinguido'
     };
     return names[rol] || rol;
   };

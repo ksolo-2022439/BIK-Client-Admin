@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, User, Loader2 } from 'lucide-react';
 import { useClientsStore } from './store/clientsStore';
 import Swal from 'sweetalert2';
+import { getReadableError } from '../../shared/utils/errorMessages';
 
 /**
  * Vista del panel administrativo para dar de alta nuevos clientes de forma directa.
@@ -78,7 +79,7 @@ export const CreateClientView = () => {
       }
     } catch (error) {
       console.error('Error creating client:', error);
-      Swal.fire('Error', error.message || 'Error al registrar el cliente.', 'error');
+      Swal.fire('Error', getReadableError(error.response?.data?.message || error.message), 'error');
     } finally {
       setLoading(false);
     }
